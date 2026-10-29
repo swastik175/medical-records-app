@@ -1,32 +1,32 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { Brand } from '../common/UI';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('login');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  // Login form state
+  // Login state
   const [loginData, setLoginData] = useState({ mobileNumber: '', password: '' });
 
-  // Register form state
+  // Register state
   const [regData, setRegData] = useState({
     fullName: '', mobileNumber: '', email: '', password: '', confirmPassword: '',
     emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
-    consentGiven: false, allowAdvisorAccess: false
+    consentGiven: false, allowAdvisorAccess: false,
   });
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
     try {
       await authService.login(loginData.mobileNumber, loginData.password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid mobile number or password');
+      toast.error(err.response?.data?.message || 'Invalid mobile number or password');
     } finally {
       setLoading(false);
     }
@@ -34,13 +34,12 @@ export default function LoginPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError('');
     if (regData.password !== regData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
     if (!regData.consentGiven) {
-      setError('You must provide consent to store medical records');
+      toast.error('You must provide consent to store medical records');
       return;
     }
     setLoading(true);
@@ -49,152 +48,157 @@ export default function LoginPage() {
       await authService.register(payload);
       setTab('login');
       setLoginData({ mobileNumber: regData.mobileNumber, password: '' });
-      setError('');
-      alert('Registration successful! Please sign in.');
+      toast.success('Account created! Please sign in.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      toast.error(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  const setL = (patch) => setLoginData(d => ({ ...d, ...patch }));
+  const setR = (patch) => setRegData(d => ({ ...d, ...patch }));
+
   return (
-    <div className="login-page">
-      <div className="login-panel">
-        {/* Logo */}
-        <div className="login-logo">
-          <div className="login-logo-icon">💊</div>
-          <h1 style={{ fontSize: '1.375rem', marginBottom: '0.25rem' }}>My Family Medical Records</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>by My Friend Insurancewala</p>
-        </div>
+    <div className="auth-page">
+      {/* ── Form side ── */}
+      <div className="auth-form-side">
+        <header>
+          <Brand />
+        </header>
 
-        {/* Tabs */}
-        <div className="login-tabs">
-          <button className={`login-tab ${tab === 'login' ? 'active' : ''}`} onClick={() => { setTab('login'); setError(''); }}>
-            Sign In
-          </button>
-          <button className={`login-tab ${tab === 'register' ? 'active' : ''}`} onClick={() => { setTab('register'); setError(''); }}>
-            Register
-          </button>
-        </div>
-
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
-            <span>⚠️</span> {error}
+        <main>
+          <div className="eyebrow">
+            {tab === 'login' ? 'Welcome back' : 'Create account'}
           </div>
-        )}
+          <h1>{tab === 'login' ? 'Sign in' : 'Get started'}</h1>
+          <p className="auth-description">
+            {tab === 'login'
+              ? "Access your family's secure health records."
+              : "Securely store your family's medical records in one place."}
+          </p>
 
-        {tab === 'login' ? (
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label className="form-label">Mobile Number <span className="required">*</span></label>
-              <input
-                type="tel"
-                className="form-input"
-                placeholder="10-digit mobile number"
-                value={loginData.mobileNumber}
-                onChange={e => setLoginData({ ...loginData, mobileNumber: e.target.value })}
-                required
-                maxLength={10}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Password <span className="required">*</span></label>
-              <input
-                type="password"
-                className="form-input"
-                placeholder="Enter your password"
-                value={loginData.password}
-                onChange={e => setLoginData({ ...loginData, password: e.target.value })}
-                required
-              />
-            </div>
-            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading}>
-              {loading ? '⏳ Signing In...' : '🔐 Sign In'}
-            </button>
-            <div style={{ marginTop: '1rem', padding: '0.875rem', background: 'var(--info-light)', borderRadius: 'var(--radius)', fontSize: '0.8125rem' }}>
-              <strong>Demo credentials:</strong><br />
-              Mobile: <code>9876543210</code> · Password: <code>Password@123</code>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleRegister}>
-            <div className="form-group">
-              <label className="form-label">Full Name <span className="required">*</span></label>
-              <input type="text" className="form-input" placeholder="Your full name"
-                value={regData.fullName} onChange={e => setRegData({ ...regData, fullName: e.target.value })} required />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Mobile Number <span className="required">*</span></label>
-                <input type="tel" className="form-input" placeholder="10-digit mobile"
-                  value={regData.mobileNumber} onChange={e => setRegData({ ...regData, mobileNumber: e.target.value })}
-                  required maxLength={10} pattern="[0-9]{10}" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Email (Optional)</label>
-                <input type="email" className="form-input" placeholder="your@email.com"
-                  value={regData.email} onChange={e => setRegData({ ...regData, email: e.target.value })} />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Password <span className="required">*</span></label>
-                <input type="password" className="form-input" placeholder="Min 8 characters"
-                  value={regData.password} onChange={e => setRegData({ ...regData, password: e.target.value })} required />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Confirm Password <span className="required">*</span></label>
-                <input type="password" className="form-input" placeholder="Repeat password"
-                  value={regData.confirmPassword} onChange={e => setRegData({ ...regData, confirmPassword: e.target.value })} required />
-              </div>
-            </div>
+          {/* Tab switcher */}
+          <div className="auth-tabs">
+            <button
+              className={`auth-tab${tab === 'login' ? ' active' : ''}`}
+              onClick={() => setTab('login')}
+            >Sign in</button>
+            <button
+              className={`auth-tab${tab === 'register' ? ' active' : ''}`}
+              onClick={() => setTab('register')}
+            >Register</button>
+          </div>
 
-            <div style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>
-              Emergency Contact (Optional)
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Contact Name</label>
-                <input type="text" className="form-input" placeholder="Contact person name"
-                  value={regData.emergencyContactName} onChange={e => setRegData({ ...regData, emergencyContactName: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Contact Phone</label>
-                <input type="tel" className="form-input" placeholder="Phone number"
-                  value={regData.emergencyContactPhone} onChange={e => setRegData({ ...regData, emergencyContactPhone: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="consent-box">
-              <input type="checkbox" id="consent"
-                checked={regData.consentGiven}
-                onChange={e => setRegData({ ...regData, consentGiven: e.target.checked })} />
-              <label htmlFor="consent" className="consent-text">
-                <strong>I give consent</strong> to store my family's medical records securely under the privacy notice of My Friend Insurancewala. I understand my records are private and will only be accessed with my permission.
-                <span className="required"> *</span>
+          {tab === 'login' ? (
+            <form className="form-stack" onSubmit={handleLogin}>
+              <label className="field">
+                <span>Mobile Number <span className="required">*</span></span>
+                <input
+                  type="tel" placeholder="10-digit mobile number" maxLength={10}
+                  value={loginData.mobileNumber} onChange={e => setL({ mobileNumber: e.target.value })}
+                  required autoFocus
+                />
               </label>
-            </div>
-
-            <div className="consent-box" style={{ marginBottom: '1.25rem' }}>
-              <input type="checkbox" id="advisorAccess"
-                checked={regData.allowAdvisorAccess}
-                onChange={e => setRegData({ ...regData, allowAdvisorAccess: e.target.checked })} />
-              <label htmlFor="advisorAccess" className="consent-text">
-                Allow my advisor at My Friend Insurancewala to view my insurance documents to help with claims and renewals.
+              <label className="field">
+                <span>Password <span className="required">*</span></span>
+                <input
+                  type="password" placeholder="Enter your password"
+                  value={loginData.password} onChange={e => setL({ password: e.target.value })}
+                  required
+                />
               </label>
-            </div>
+              <button className="button button-primary button-full" type="submit" disabled={loading}>
+                {loading ? 'Signing in…' : 'Sign in'}
+              </button>
+              <div className="auth-demo-hint">
+                <strong>Demo:</strong> Mobile <code>9876543210</code> · Password <code>Password@123</code>
+              </div>
+            </form>
+          ) : (
+            <form className="form-stack" onSubmit={handleRegister}>
+              <label className="field">
+                <span>Full Name <span className="required">*</span></span>
+                <input type="text" placeholder="Your full name"
+                  value={regData.fullName} onChange={e => setR({ fullName: e.target.value })} required />
+              </label>
+              <div className="form-grid">
+                <label className="field">
+                  <span>Mobile Number <span className="required">*</span></span>
+                  <input type="tel" placeholder="10-digit mobile" maxLength={10} pattern="[0-9]{10}"
+                    value={regData.mobileNumber} onChange={e => setR({ mobileNumber: e.target.value })} required />
+                </label>
+                <label className="field">
+                  <span>Email (optional)</span>
+                  <input type="email" placeholder="your@email.com"
+                    value={regData.email} onChange={e => setR({ email: e.target.value })} />
+                </label>
+              </div>
+              <div className="form-grid">
+                <label className="field">
+                  <span>Password <span className="required">*</span></span>
+                  <input type="password" placeholder="Min 8 characters"
+                    value={regData.password} onChange={e => setR({ password: e.target.value })} required />
+                </label>
+                <label className="field">
+                  <span>Confirm Password <span className="required">*</span></span>
+                  <input type="password" placeholder="Repeat password"
+                    value={regData.confirmPassword} onChange={e => setR({ confirmPassword: e.target.value })} required />
+                </label>
+              </div>
 
-            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading}>
-              {loading ? '⏳ Registering...' : '✅ Create Account'}
-            </button>
-          </form>
-        )}
+              <div className="eyebrow" style={{ marginBottom: 0 }}>Emergency Contact (optional)</div>
+              <div className="form-grid">
+                <label className="field">
+                  <span>Contact Name</span>
+                  <input type="text" placeholder="Contact person name"
+                    value={regData.emergencyContactName} onChange={e => setR({ emergencyContactName: e.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Contact Phone</span>
+                  <input type="tel" placeholder="Phone number"
+                    value={regData.emergencyContactPhone} onChange={e => setR({ emergencyContactPhone: e.target.value })} />
+                </label>
+              </div>
 
-        <div style={{ marginTop: '1.5rem', padding: '0.875rem', background: 'var(--surface-alt)', borderRadius: 'var(--radius)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          🔒 Your medical records are stored securely and privately. We do not share your health information without your explicit consent.
-        </div>
+              <label className="consent-row">
+                <input type="checkbox" checked={regData.consentGiven}
+                  onChange={e => setR({ consentGiven: e.target.checked })} />
+                <span>
+                  <strong>I give consent</strong> to store my family's medical records securely under the privacy
+                  notice of My Friend Insurancewala. <span className="required">*</span>
+                </span>
+              </label>
+              <label className="consent-row">
+                <input type="checkbox" checked={regData.allowAdvisorAccess}
+                  onChange={e => setR({ allowAdvisorAccess: e.target.checked })} />
+                <span>Allow my advisor at My Friend Insurancewala to view my insurance documents to help with claims and renewals.</span>
+              </label>
+
+              <button className="button button-primary button-full" type="submit" disabled={loading}>
+                {loading ? 'Creating account…' : 'Create account'}
+              </button>
+            </form>
+          )}
+
+          <p className="auth-footer">
+            🔒 Your records are stored securely. We never share your health data without your explicit consent.
+          </p>
+        </main>
       </div>
+
+      {/* ── Decorative aside ── */}
+      <aside className="auth-aside">
+        <div>
+          <Brand inverse />
+          <blockquote>Your family's health, always at hand.</blockquote>
+          <p>
+            Store prescriptions, lab reports, insurance policies and more — organised, private and accessible
+            whenever your family needs them most.
+          </p>
+        </div>
+        <small>By My Friend Insurancewala</small>
+      </aside>
     </div>
   );
 }

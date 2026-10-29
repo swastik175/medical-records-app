@@ -1,25 +1,29 @@
 import { useState, useEffect } from 'react';
+import { FilePlus2, Download, Pencil, Trash2 } from 'lucide-react';
 import api from '../../services/api';
-import { LoadingOverlay, EmptyState, ConfirmModal } from '../common/UI';
-import { useToast, ToastContainer } from '../common/Toast';
+import { Loading, EmptyState, ConfirmModal, PageHeader } from '../common/UI';
+import { toast } from 'sonner';
 
 const CATEGORIES = [
-  { value: 'PRESCRIPTION', label: 'Prescriptions', icon: '💊' },
-  { value: 'LAB_REPORT', label: 'Lab Reports', icon: '🧪' },
-  { value: 'RADIOLOGY', label: 'Radiology (X-ray/CT/MRI)', icon: '🔬' },
-  { value: 'HOSPITAL_DISCHARGE', label: 'Hospital Discharge', icon: '🏥' },
-  { value: 'MEDICAL_BILL', label: 'Medical Bills', icon: '🧾' },
-  { value: 'VACCINATION', label: 'Vaccination Records', icon: '💉' },
-  { value: 'ALLERGY_MEDICINE', label: 'Allergies & Medicines', icon: '⚕️' },
+  { value: 'PRESCRIPTION',       label: 'Prescription' },
+  { value: 'LAB_REPORT',         label: 'Lab Report' },
+  { value: 'RADIOLOGY',          label: 'Radiology (X-ray / CT / MRI)' },
+  { value: 'HOSPITAL_DISCHARGE', label: 'Hospital Discharge' },
+  { value: 'MEDICAL_BILL',       label: 'Medical Bill' },
+  { value: 'VACCINATION',        label: 'Vaccination Record' },
+  { value: 'ALLERGY_MEDICINE',   label: 'Allergy & Medicine' },
 ];
 
 const EMPTY_FORM = {
   familyMemberId: '', category: 'PRESCRIPTION', title: '',
-  doctorOrHospitalName: '', recordDate: '', notes: '', tags: '', billAmount: ''
+  doctorOrHospitalName: '', recordDate: '', notes: '', tags: '', billAmount: '',
 };
 
-const CATEGORY_ICONS = Object.fromEntries(CATEGORIES.map(c => [c.value, c.icon]));
-const CATEGORY_LABELS = Object.fromEntries(CATEGORIES.map(c => [c.value, c.label]));
+function formatDate(val) {
+  if (!val) return '—';
+  try { return new Date(val + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  catch { return val; }
+}
 
 export default function MedicalRecordsPage() {
   const [records, setRecords] = useState([]);
@@ -34,14 +38,10 @@ export default function MedicalRecordsPage() {
   const [filterMember, setFilterMember] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [search, setSearch] = useState('');
-  const toast = useToast();
 
   const load = async () => {
     try {
-      const [recsRes, memRes] = await Promise.all([
-        api.get('/records'),
-        api.get('/family')
-      ]);
+      const [recsRes, memRes] = await Promise.all([api.get('/records'), api.get('/family')]);
       setRecords(Array.isArray(recsRes.data) ? recsRes.data : []);
       setMembers(Array.isArray(memRes.data) ? memRes.data : []);
     } catch {
@@ -64,13 +64,9 @@ export default function MedicalRecordsPage() {
     setEditRecord(r);
     setForm({
       familyMemberId: r.familyMemberId?.toString() || '',
-      category: r.category || 'PRESCRIPTION',
-      title: r.title || '',
-      doctorOrHospitalName: r.doctorOrHospitalName || '',
-      recordDate: r.recordDate || '',
-      notes: r.notes || '',
-      tags: r.tags || '',
-      billAmount: r.billAmount || ''
+      category: r.category || 'PRESCRIPTION', title: r.title || '',
+      doctorOrHospitalName: r.doctorOrHospitalName || '', recordDate: r.recordDate || '',
+      notes: r.notes || '', tags: r.tags || '', billAmount: r.billAmount || '',
     });
     setFile(null);
     setShowModal(true);
@@ -80,18 +76,30 @@ export default function MedicalRecordsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const formData = new FormData();
-      Object.entries(form).forEach(([k, v]) => { if (v !== '') formData.append(k, v); });
-      if (file) formData.append('file', file);
+      const recordPayload = {
+        familyMemberId: Number(form.familyMemberId),
+        category: form.category,
+        title: form.title,
+        doctorOrHospitalName: form.doctorOrHospitalName || null,
+        recordDate: form.recordDate,
+        notes: form.notes || null,
+        tags: form.tags || null,
+        billAmount: form.billAmount ? Number(form.billAmount) : null
+      };
 
-      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
       if (editRecord) {
-        await api.put(`/records/${editRecord.id}`, formData, config);
-        toast.success('Record updated!');
-      } else {
-        await api.post('/records', formData, config);
-        toast.success('Record added!');
+        try { await api.delete(`/records/${editRecord.id}`); } catch (_) {}
       }
+
+      if (file) {
+        const fd = new FormData();
+        fd.append('record', JSON.stringify(recordPayload));
+        fd.append('file', file);
+        await api.post('/records', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else {
+        await api.post('/records', recordPayload);
+      }
+      toast.success(editRecord ? 'Record updated!' : 'Record added!');
       setShowModal(false);
       load();
     } catch (err) {
@@ -118,9 +126,7 @@ export default function MedicalRecordsPage() {
       const res = await api.get(`/records/${r.id}/download`, { responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = r.originalFileName || 'document';
-      a.click();
+      a.href = url; a.download = r.originalFileName || 'document'; a.click();
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Failed to download file');
@@ -135,161 +141,159 @@ export default function MedicalRecordsPage() {
     return true;
   });
 
-  if (loading) return <LoadingOverlay />;
+  const sorted = [...filtered].sort((a, b) => new Date(b.recordDate || 0) - new Date(a.recordDate || 0));
+
+  const set = (patch) => setForm(f => ({ ...f, ...patch }));
+
+  if (loading) return <Loading />;
 
   return (
-    <div>
-      <ToastContainer toasts={toast.toasts} />
+    <div className="page-stack">
+      <PageHeader
+        eyebrow="Health Records"
+        title="Medical Records"
+        description="Prescriptions, lab reports, bills and more."
+        action={
+          <button className="button button-primary" onClick={openAdd}>
+            <FilePlus2 size={16} /> Add Record
+          </button>
+        }
+      />
 
-      <div className="page-header">
-        <div className="page-title">
-          <h1>📋 Medical Records</h1>
-          <p>Prescriptions, reports, bills and all health documents</p>
-        </div>
-        <button className="btn btn-primary" onClick={openAdd} disabled={members.length === 0}>
-          ➕ Add Record
-        </button>
+      {/* Filter bar */}
+      <div className="filter-bar">
+        <input
+          className="filter-search"
+          type="search" placeholder="Search records…"
+          value={search} onChange={e => setSearch(e.target.value)}
+        />
+        <select className="filter-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+          <option value="">All categories</option>
+          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        <select className="filter-select" value={filterMember} onChange={e => setFilterMember(e.target.value)}>
+          <option value="">All members</option>
+          {members.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
+        </select>
       </div>
 
-      {members.length === 0 && (
-        <div className="alert alert-warning">
-          ⚠️ Please add a <strong>family member</strong> first before adding medical records.
+      {sorted.length === 0 ? (
+        <EmptyState
+          title="No records found"
+          description={records.length === 0 ? 'Add your first medical record to get started.' : 'Try adjusting your filters.'}
+          action={records.length === 0 ? <button className="button button-primary" onClick={openAdd}>Add First Record</button> : null}
+        />
+      ) : (
+        <div className="document-ledger">
+          {sorted.map(r => {
+            const member = members.find(m => m.id?.toString() === r.familyMemberId?.toString());
+            const catLabel = CATEGORIES.find(c => c.value === r.category)?.label || r.category;
+            const d = r.recordDate ? new Date(r.recordDate + 'T00:00:00') : null;
+            return (
+              <div key={r.id} className="record-row">
+                <div className="record-date-block">
+                  <span className="record-day">{d ? d.getDate() : '—'}</span>
+                  <span className="record-month">{d ? d.toLocaleString('en-IN', { month: 'short' }).toUpperCase() : ''}</span>
+                  <span className="record-year">{d ? d.getFullYear() : ''}</span>
+                </div>
+                <div className="record-row-info">
+                  <div className="record-row-title">{r.title}</div>
+                  <div className="record-row-meta muted">
+                    {catLabel}
+                    {member ? ` · ${member.fullName}` : ''}
+                    {r.doctorOrHospitalName ? ` · ${r.doctorOrHospitalName}` : ''}
+                  </div>
+                  {r.tags && <div className="record-tags">{r.tags.split(',').map(t => <span key={t} className="tag">{t.trim()}</span>)}</div>}
+                </div>
+                <div className="record-row-actions">
+                  {r.originalFileName && (
+                    <button className="icon-button" title="Download" onClick={() => handleDownload(r)}>
+                      <Download size={16} />
+                    </button>
+                  )}
+                  <button className="icon-button" title="Edit" onClick={() => openEdit(r)}>
+                    <Pencil size={16} />
+                  </button>
+                  <button className="icon-button danger-text" title="Delete" onClick={() => setDeleteTarget(r)}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Filters */}
-      <div className="filters-bar">
-        <input className="search-input" placeholder="🔍 Search by title or hospital..."
-          value={search} onChange={e => setSearch(e.target.value)} />
-        <select className="filter-select" value={filterMember} onChange={e => setFilterMember(e.target.value)}>
-          <option value="">All Members</option>
-          {members.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
-        </select>
-        <select className="filter-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-          <option value="">All Categories</option>
-          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
-        </select>
-        {(filterMember || filterCategory || search) && (
-          <button className="btn btn-ghost btn-sm" onClick={() => { setFilterMember(''); setFilterCategory(''); setSearch(''); }}>
-            ✕ Clear
-          </button>
-        )}
-      </div>
-
-      {/* Records List */}
-      <div className="card">
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon="📋"
-            title="No records found"
-            description={records.length === 0 ? 'Add your first medical record to get started.' : 'No records match your filters.'}
-            action={records.length === 0 && members.length > 0 && (
-              <button className="btn btn-primary" onClick={openAdd}>Add First Record</button>
-            )}
-          />
-        ) : (
-          filtered.map(r => (
-            <div key={r.id} className="record-item">
-              <div className="record-icon">{CATEGORY_ICONS[r.category] || '📋'}</div>
-              <div className="record-body">
-                <div className="record-title">{r.title}</div>
-                <div className="record-meta">
-                  <span className="badge badge-primary">{CATEGORY_LABELS[r.category]}</span>
-                  <span>👤 {r.familyMemberName}</span>
-                  {r.doctorOrHospitalName && <span>🏥 {r.doctorOrHospitalName}</span>}
-                  <span>📅 {r.recordDate}</span>
-                  {r.billAmount && <span>💰 ₹{r.billAmount}</span>}
-                  {r.originalFileName && <span>📎 {r.originalFileName}</span>}
-                </div>
-                {r.notes && <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{r.notes}</div>}
-              </div>
-              <div className="record-actions">
-                {r.storedFileName && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => handleDownload(r)} title="Download">⬇️</button>
-                )}
-                <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>✏️</button>
-                <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(r)}>🗑️</button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Add/Edit Modal */}
+      {/* Modal */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 600 }}>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-inner" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editRecord ? '✏️ Edit Record' : '📋 Add Medical Record'}</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <h2 className="modal-title">{editRecord ? 'Edit Record' : 'Add Medical Record'}</h2>
+              <button className="icon-button" onClick={() => setShowModal(false)} aria-label="Close">✕</button>
             </div>
             <form onSubmit={handleSave}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Family Member <span className="required">*</span></label>
-                    <select className="form-select" value={form.familyMemberId}
-                      onChange={e => setForm({ ...form, familyMemberId: e.target.value })} required>
+              <div className="modal-body form-stack">
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Family Member <span className="required">*</span></span>
+                    <select value={form.familyMemberId} onChange={e => set({ familyMemberId: e.target.value })} required>
                       <option value="">Select member</option>
                       {members.map(m => <option key={m.id} value={m.id}>{m.fullName} ({m.relationship})</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Document Category <span className="required">*</span></label>
-                    <select className="form-select" value={form.category}
-                      onChange={e => setForm({ ...form, category: e.target.value })}>
-                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
+                  </label>
+                  <label className="field">
+                    <span>Category <span className="required">*</span></span>
+                    <select value={form.category} onChange={e => set({ category: e.target.value })}>
+                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
-                  </div>
+                  </label>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Document Title <span className="required">*</span></label>
-                  <input type="text" className="form-input" placeholder="e.g. Blood Sugar Test - June 2024"
-                    value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
+                <label className="field">
+                  <span>Document Title <span className="required">*</span></span>
+                  <input type="text" placeholder="e.g. Blood Sugar Test — June 2024"
+                    value={form.title} onChange={e => set({ title: e.target.value })} required />
+                </label>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Doctor / Hospital</span>
+                    <input type="text" placeholder="Dr. Name or Hospital"
+                      value={form.doctorOrHospitalName} onChange={e => set({ doctorOrHospitalName: e.target.value })} />
+                  </label>
+                  <label className="field">
+                    <span>Date of Record <span className="required">*</span></span>
+                    <input type="date" value={form.recordDate} onChange={e => set({ recordDate: e.target.value })} required />
+                  </label>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Doctor / Hospital Name</label>
-                    <input type="text" className="form-input" placeholder="Dr. Name or Hospital"
-                      value={form.doctorOrHospitalName} onChange={e => setForm({ ...form, doctorOrHospitalName: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Date of Record <span className="required">*</span></label>
-                    <input type="date" className="form-input" value={form.recordDate}
-                      onChange={e => setForm({ ...form, recordDate: e.target.value })} required />
-                  </div>
-                </div>
-                {(form.category === 'MEDICAL_BILL') && (
-                  <div className="form-group">
-                    <label className="form-label">Bill Amount (₹)</label>
-                    <input type="number" className="form-input" placeholder="0.00" step="0.01"
-                      value={form.billAmount} onChange={e => setForm({ ...form, billAmount: e.target.value })} />
-                  </div>
+                {form.category === 'MEDICAL_BILL' && (
+                  <label className="field">
+                    <span>Bill Amount (₹)</span>
+                    <input type="number" placeholder="0.00" step="0.01"
+                      value={form.billAmount} onChange={e => set({ billAmount: e.target.value })} />
+                  </label>
                 )}
-                <div className="form-group">
-                  <label className="form-label">Upload Document (PDF / JPG / PNG — max 25 MB)</label>
-                  <input type="file" className="form-input" accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={e => setFile(e.target.files[0])}
-                    style={{ padding: '0.5rem' }} />
+                <label className="field">
+                  <span>Upload Document (PDF / JPG / PNG — max 25 MB)</span>
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files[0])} />
                   {editRecord?.originalFileName && !file && (
-                    <span className="form-hint">Current file: {editRecord.originalFileName}</span>
+                    <span className="muted" style={{ fontSize: 13 }}>Current: {editRecord.originalFileName}</span>
                   )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Notes</label>
-                  <textarea className="form-textarea" placeholder="Any additional notes about this record..."
-                    value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Tags</label>
-                  <input type="text" className="form-input" placeholder="e.g. diabetes, annual checkup"
-                    value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} />
-                </div>
+                </label>
+                <label className="field">
+                  <span>Notes</span>
+                  <textarea placeholder="Any additional notes about this record…"
+                    value={form.notes} onChange={e => set({ notes: e.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Tags</span>
+                  <input type="text" placeholder="e.g. diabetes, annual checkup"
+                    value={form.tags} onChange={e => set({ tags: e.target.value })} />
+                </label>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? '⏳ Saving...' : '💾 Save Record'}
+                <button type="button" className="button button-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="button button-primary" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save Record'}
                 </button>
               </div>
             </form>

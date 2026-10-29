@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { UserPlus, Pencil, Trash2 } from 'lucide-react';
 import api from '../../services/api';
-import { LoadingOverlay, EmptyState, ConfirmModal } from '../common/UI';
-import { useToast, ToastContainer } from '../common/Toast';
+import { Loading, EmptyState, ConfirmModal, PageHeader } from '../common/UI';
+import { toast } from 'sonner';
 
 const RELATIONSHIPS = ['SELF', 'SPOUSE', 'SON', 'DAUGHTER', 'FATHER', 'MOTHER', 'SIBLING', 'GRANDPARENT', 'OTHER'];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
@@ -9,8 +10,23 @@ const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown
 const EMPTY_FORM = {
   fullName: '', relationship: 'SELF', dateOfBirth: '',
   gender: 'Male', bloodGroup: '', abhaAddress: '',
-  allergies: '', chronicConditions: '', notes: ''
+  allergies: '', chronicConditions: '', notes: '',
 };
+
+function getAge(dob) {
+  if (!dob) return null;
+  return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+}
+
+function getInitials(name) {
+  return name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
+}
+
+function formatDate(val) {
+  if (!val) return '—';
+  try { return new Date(val + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  catch { return val; }
+}
 
 export default function FamilyMembersPage() {
   const [members, setMembers] = useState([]);
@@ -20,7 +36,6 @@ export default function FamilyMembersPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const toast = useToast();
 
   const load = async () => {
     try {
@@ -35,12 +50,7 @@ export default function FamilyMembersPage() {
 
   useEffect(() => { load(); }, []);
 
-  const openAdd = () => {
-    setEditMember(null);
-    setForm(EMPTY_FORM);
-    setShowModal(true);
-  };
-
+  const openAdd = () => { setEditMember(null); setForm(EMPTY_FORM); setShowModal(true); };
   const openEdit = (m) => {
     setEditMember(m);
     setForm({
@@ -48,7 +58,7 @@ export default function FamilyMembersPage() {
       dateOfBirth: m.dateOfBirth || '', gender: m.gender || 'Male',
       bloodGroup: m.bloodGroup || '', abhaAddress: m.abhaAddress || '',
       allergies: m.allergies || '', chronicConditions: m.chronicConditions || '',
-      notes: m.notes || ''
+      notes: m.notes || '',
     });
     setShowModal(true);
   };
@@ -85,151 +95,130 @@ export default function FamilyMembersPage() {
     }
   };
 
-  const getAge = (dob) => {
-    if (!dob) return null;
-    const diff = Date.now() - new Date(dob).getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
-  };
+  const set = (patch) => setForm(f => ({ ...f, ...patch }));
 
-  const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
-
-  if (loading) return <LoadingOverlay />;
+  if (loading) return <Loading />;
 
   return (
-    <div>
-      <ToastContainer toasts={toast.toasts} />
-
-      <div className="page-header">
-        <div className="page-title">
-          <h1>👨‍👩‍👧‍👦 My Family</h1>
-          <p>Manage profiles for each family member</p>
-        </div>
-        <button className="btn btn-primary" onClick={openAdd}>
-          ➕ Add Family Member
-        </button>
-      </div>
+    <div className="page-stack">
+      <PageHeader
+        eyebrow="My Family"
+        title="Family Members"
+        description="Manage profiles for each family member."
+        action={
+          <button className="button button-primary" onClick={openAdd}>
+            <UserPlus size={16} /> Add Member
+          </button>
+        }
+      />
 
       {members.length === 0 ? (
         <EmptyState
-          icon="👨‍👩‍👧‍👦"
           title="No family members added yet"
-          description="Add your family members to organize their medical records separately."
-          action={<button className="btn btn-primary" onClick={openAdd}>Add First Member</button>}
+          description="Add your family members to organise their medical records separately."
+          action={<button className="button button-primary" onClick={openAdd}>Add First Member</button>}
         />
       ) : (
-        <div className="members-grid">
-          {members.map(m => (
-            <div key={m.id} className="member-card">
-              <div className="member-avatar">{getInitials(m.fullName)}</div>
-              <div className="member-name">{m.fullName}</div>
-              <div>
-                <span className="badge badge-primary">{m.relationship}</span>
-              </div>
-              <div className="member-age">
-                {m.gender}{m.dateOfBirth && getAge(m.dateOfBirth) ? ` · ${getAge(m.dateOfBirth)} yrs` : ''}
-                {m.bloodGroup && ` · ${m.bloodGroup}`}
-              </div>
-              {m.allergies && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--danger)', background: 'var(--danger-light)', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)', width: '100%', textAlign: 'center' }}>
-                  ⚠️ Allergies: {m.allergies}
-                </div>
-              )}
-              <div className="member-actions">
-                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => openEdit(m)}>
-                  ✏️ Edit
-                </button>
-                <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(m)}>
-                  🗑️
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="family-grid">
+          {members.map(m => {
+            const age = getAge(m.dateOfBirth);
+            return (
+              <div key={m.id} className="family-profile">
+                <div className="profile-avatar">{getInitials(m.fullName)}</div>
+                <div className="profile-name">{m.fullName}</div>
+                <div className="profile-rel">{m.relationship}</div>
 
-          {/* Add new card */}
-          <div
-            className="member-card"
-            style={{ cursor: 'pointer', border: '2px dashed var(--border)', background: 'var(--surface-alt)', justifyContent: 'center' }}
-            onClick={openAdd}
-          >
-            <div style={{ fontSize: '2rem', color: 'var(--text-muted)' }}>➕</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Add Member</div>
-          </div>
+                <dl className="profile-dl">
+                  {m.dateOfBirth && <><dt>Date of Birth</dt><dd>{formatDate(m.dateOfBirth)}{age ? ` (${age} yrs)` : ''}</dd></>}
+                  {m.gender && <><dt>Gender</dt><dd>{m.gender}</dd></>}
+                  {m.bloodGroup && <><dt>Blood Group</dt><dd>{m.bloodGroup}</dd></>}
+                  {m.abhaAddress && <><dt>ABHA Address</dt><dd>{m.abhaAddress}</dd></>}
+                  {m.allergies && <><dt>Allergies</dt><dd className="danger-text">{m.allergies}</dd></>}
+                  {m.chronicConditions && <><dt>Chronic Conditions</dt><dd>{m.chronicConditions}</dd></>}
+                </dl>
+
+                <div className="profile-actions">
+                  <button className="button button-secondary button-small" onClick={() => openEdit(m)}>
+                    <Pencil size={14} /> Edit
+                  </button>
+                  <button className="button button-danger button-small" onClick={() => setDeleteTarget(m)}>
+                    <Trash2 size={14} /> Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 580 }}>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-inner" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editMember ? '✏️ Edit Family Member' : '➕ Add Family Member'}</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+              <h2 className="modal-title">{editMember ? 'Edit Family Member' : 'Add Family Member'}</h2>
+              <button className="icon-button" onClick={() => setShowModal(false)} aria-label="Close">✕</button>
             </div>
             <form onSubmit={handleSave}>
-              <div className="modal-body">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Full Name <span className="required">*</span></label>
-                    <input type="text" className="form-input" value={form.fullName}
-                      onChange={e => setForm({ ...form, fullName: e.target.value })} required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Relationship <span className="required">*</span></label>
-                    <select className="form-select" value={form.relationship}
-                      onChange={e => setForm({ ...form, relationship: e.target.value })}>
+              <div className="modal-body form-stack">
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Full Name <span className="required">*</span></span>
+                    <input type="text" value={form.fullName} onChange={e => set({ fullName: e.target.value })} required />
+                  </label>
+                  <label className="field">
+                    <span>Relationship <span className="required">*</span></span>
+                    <select value={form.relationship} onChange={e => set({ relationship: e.target.value })}>
                       {RELATIONSHIPS.map(r => <option key={r}>{r}</option>)}
                     </select>
-                  </div>
+                  </label>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Date of Birth</label>
-                    <input type="date" className="form-input" value={form.dateOfBirth}
-                      onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Gender</label>
-                    <select className="form-select" value={form.gender}
-                      onChange={e => setForm({ ...form, gender: e.target.value })}>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Date of Birth</span>
+                    <input type="date" value={form.dateOfBirth} onChange={e => set({ dateOfBirth: e.target.value })} />
+                  </label>
+                  <label className="field">
+                    <span>Gender</span>
+                    <select value={form.gender} onChange={e => set({ gender: e.target.value })}>
                       <option>Male</option><option>Female</option><option>Other</option>
                     </select>
-                  </div>
+                  </label>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Blood Group</label>
-                    <select className="form-select" value={form.bloodGroup}
-                      onChange={e => setForm({ ...form, bloodGroup: e.target.value })}>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Blood Group</span>
+                    <select value={form.bloodGroup} onChange={e => set({ bloodGroup: e.target.value })}>
                       <option value="">Select</option>
                       {BLOOD_GROUPS.map(bg => <option key={bg}>{bg}</option>)}
                     </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">ABHA Address</label>
-                    <input type="text" className="form-input" placeholder="e.g. name@abdm"
-                      value={form.abhaAddress} onChange={e => setForm({ ...form, abhaAddress: e.target.value })} />
-                  </div>
+                  </label>
+                  <label className="field">
+                    <span>ABHA Address</span>
+                    <input type="text" placeholder="e.g. name@abdm"
+                      value={form.abhaAddress} onChange={e => set({ abhaAddress: e.target.value })} />
+                  </label>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Known Allergies</label>
-                  <input type="text" className="form-input" placeholder="e.g. Penicillin, Peanuts"
-                    value={form.allergies} onChange={e => setForm({ ...form, allergies: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Chronic Conditions</label>
-                  <input type="text" className="form-input" placeholder="e.g. Type 2 Diabetes, Hypertension"
-                    value={form.chronicConditions} onChange={e => setForm({ ...form, chronicConditions: e.target.value })} />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Notes</label>
-                  <textarea className="form-textarea" placeholder="Any additional notes..."
-                    value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
-                </div>
+                <label className="field">
+                  <span>Known Allergies</span>
+                  <input type="text" placeholder="e.g. Penicillin, Peanuts"
+                    value={form.allergies} onChange={e => set({ allergies: e.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Chronic Conditions</span>
+                  <input type="text" placeholder="e.g. Type 2 Diabetes, Hypertension"
+                    value={form.chronicConditions} onChange={e => set({ chronicConditions: e.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Notes</span>
+                  <textarea placeholder="Any additional notes…"
+                    value={form.notes} onChange={e => set({ notes: e.target.value })} />
+                </label>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? '⏳ Saving...' : '💾 Save'}
+                <button type="button" className="button button-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="button button-primary" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>
@@ -237,11 +226,10 @@ export default function FamilyMembersPage() {
         </div>
       )}
 
-      {/* Delete confirm */}
       {deleteTarget && (
         <ConfirmModal
           title="Remove Family Member"
-          message={`Remove ${deleteTarget.fullName} and all their medical records? This cannot be undone.`}
+          message={`Remove ${deleteTarget.fullName} and all their records? This cannot be undone.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
           confirmText="Remove"

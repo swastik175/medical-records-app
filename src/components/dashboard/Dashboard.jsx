@@ -1,13 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Users, Files, ShieldCheck, Bell, Siren, FilePlus2, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
-import { LoadingOverlay } from '../common/UI';
+import { Loading } from '../common/UI';
 import { authService } from '../../services/authService';
+import { toast } from 'sonner';
+
+const CATEGORY_LABEL = {
+  PRESCRIPTION: 'Prescription', LAB_REPORT: 'Lab Report', RADIOLOGY: 'Radiology',
+  HOSPITAL_DISCHARGE: 'Discharge', MEDICAL_BILL: 'Bill', VACCINATION: 'Vaccination',
+  ALLERGY_MEDICINE: 'Allergy / Medicine',
+};
+
+function formatDate(val) {
+  if (!val) return '—';
+  try { return new Date(val + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+  catch { return val; }
+}
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [policies, setPolicies] = useState([]);
-  const [reminders, setReminders] = useState([]);
+  const [data, setData] = useState({ family: [], records: [], policies: [], reminders: [] });
   const [loading, setLoading] = useState(true);
   const user = authService.getCurrentUser();
 
@@ -17,177 +29,153 @@ export default function Dashboard() {
       api.get('/records').catch(() => ({ data: [] })),
       api.get('/policies').catch(() => ({ data: [] })),
       api.get('/reminders').catch(() => ({ data: [] })),
-    ]).then(([family, records, pols, rems]) => {
-      const familyData = Array.isArray(family.data) ? family.data : [];
-      const recordsData = Array.isArray(records.data) ? records.data : [];
-      const policiesData = Array.isArray(pols.data) ? pols.data : [];
-      const remindersData = Array.isArray(rems.data) ? rems.data : [];
-
-      setStats({
-        familyCount: familyData.length,
-        recordCount: recordsData.length,
-        policyCount: policiesData.filter(p => p.active).length,
-        upcomingReminders: remindersData.filter(r => r.enabled).length,
-        expiringPolicies: policiesData.filter(p => p.active && p.daysUntilExpiry <= 30).length,
+    ]).then(([f, r, p, rem]) => {
+      setData({
+        family: Array.isArray(f.data) ? f.data : [],
+        records: Array.isArray(r.data) ? r.data : [],
+        policies: Array.isArray(p.data) ? p.data : [],
+        reminders: Array.isArray(rem.data) ? rem.data : [],
       });
-      setPolicies(policiesData.filter(p => p.active).slice(0, 3));
-      setReminders(remindersData.filter(r => r.enabled).slice(0, 5));
-    }).finally(() => setLoading(false));
+    }).catch(() => toast.error('Failed to load dashboard data'))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingOverlay message="Loading dashboard..." />;
+  if (loading) return <Loading message="Loading dashboard…" />;
 
-  const STAT_CARDS = [
-    { icon: '👨‍👩‍👧‍👦', label: 'Family Members', value: stats?.familyCount ?? 0, color: '#ede9fe', iconColor: '#7c3aed', to: '/family' },
-    { icon: '📋', label: 'Medical Records', value: stats?.recordCount ?? 0, color: '#dbeafe', iconColor: '#2563eb', to: '/records' },
-    { icon: '🛡️', label: 'Active Policies', value: stats?.policyCount ?? 0, color: '#dcfce7', iconColor: '#16a34a', to: '/policies' },
-    { icon: '🔔', label: 'Active Reminders', value: stats?.upcomingReminders ?? 0, color: '#fef3c7', iconColor: '#d97706', to: '/reminders' },
+  const { family, records, policies, reminders } = data;
+  const activePolicies = policies.filter(p => p.active);
+  const expiringPolicies = activePolicies.filter(p => p.daysUntilExpiry != null && p.daysUntilExpiry <= 30);
+  const activeReminders = reminders.filter(r => (r.active !== undefined ? r.active : r.enabled));
+  const recentRecords = [...records].sort((a, b) => new Date(b.recordDate || 0) - new Date(a.recordDate || 0)).slice(0, 5);
+
+  const LEDGER = [
+    { to: '/family',    icon: Users,       label: 'Family members', value: family.length },
+    { to: '/records',   icon: Files,       label: 'Medical records', value: records.length },
+    { to: '/policies',  icon: ShieldCheck, label: 'Active policies', value: activePolicies.length },
+    { to: '/reminders', icon: Bell,        label: 'Active reminders', value: activeReminders.length },
   ];
 
   return (
-    <div>
+    <div className="page-stack">
       {/* Welcome */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
-          Welcome back, {user?.fullName?.split(' ')[0] || 'there'} 👋
-        </h1>
-        <p style={{ color: 'var(--text-muted)' }}>Here's a quick overview of your family's health records.</p>
+      <div className="page-header">
+        <div>
+          <div className="eyebrow">Dashboard</div>
+          <h1 className="page-title">
+            Welcome back, {user?.fullName?.split(' ')[0] || 'there'}
+          </h1>
+          <p className="muted" style={{ marginBottom: 0 }}>Here's a quick overview of your family's health records.</p>
+        </div>
+        <Link to="/emergency" className="button button-secondary">
+          <Siren size={16} /> Emergency Card
+        </Link>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid">
-        {STAT_CARDS.map(({ icon, label, value, color, iconColor, to }) => (
-          <Link to={to} key={label} style={{ textDecoration: 'none' }}>
-            <div className="stat-card" style={{ cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow)'}
-            >
-              <div className="stat-icon" style={{ background: color }}>
-                <span style={{ fontSize: '1.3rem' }}>{icon}</span>
-              </div>
-              <div>
-                <div className="stat-label">{label}</div>
-                <div className="stat-value" style={{ color: iconColor }}>{value}</div>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Expiring soon alert */}
-      {stats?.expiringPolicies > 0 && (
-        <div className="alert alert-warning" style={{ marginBottom: '1.5rem' }}>
-          <span>⚠️</span>
+      {/* Expiring alert */}
+      {expiringPolicies.length > 0 && (
+        <div className="attention-strip">
+          <AlertTriangle size={18} />
           <span>
-            <strong>{stats.expiringPolicies} insurance policy</strong> is expiring within 30 days.
-            {' '}<Link to="/policies" style={{ color: 'inherit', fontWeight: 600, textDecoration: 'underline' }}>Review policies →</Link>
+            <strong>{expiringPolicies.length} insurance {expiringPolicies.length === 1 ? 'policy' : 'policies'}</strong> expiring within 30 days.{' '}
+            <Link to="/policies" style={{ color: 'inherit', fontWeight: 700, textDecoration: 'underline' }}>Review →</Link>
           </span>
         </div>
       )}
 
-      <div className="dashboard-grid">
-        {/* Recent Policies */}
-        <div className="card">
-          <div className="card-header">
-            <h3 style={{ margin: 0 }}>🛡️ Active Insurance Policies</h3>
-            <Link to="/policies" className="btn btn-ghost btn-sm">View All</Link>
-          </div>
-          {policies.length === 0 ? (
-            <div className="card-body">
-              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🛡️</div>
-                <p>No policies added yet.</p>
-                <Link to="/policies" className="btn btn-primary btn-sm" style={{ marginTop: '0.75rem' }}>
-                  Add Policy
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {policies.map(p => (
-                <div key={p.id} style={{
-                  display: 'flex', alignItems: 'center', gap: '1rem',
-                  padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-light)'
-                }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 'var(--radius)',
-                    background: 'var(--secondary-light)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem'
-                  }}>🛡️</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.companyName}</div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                      Policy #{p.policyNumber} · Expires {p.expiryDate}
-                    </div>
-                  </div>
-                  {p.daysUntilExpiry <= 30 ? (
-                    <span className="badge badge-danger">Expiring Soon</span>
-                  ) : (
-                    <span className="badge badge-success">Active</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Upcoming Reminders */}
-        <div className="card">
-          <div className="card-header">
-            <h3 style={{ margin: 0 }}>🔔 Reminders</h3>
-            <Link to="/reminders" className="btn btn-ghost btn-sm">View All</Link>
-          </div>
-          {reminders.length === 0 ? (
-            <div className="card-body">
-              <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔔</div>
-                <p style={{ fontSize: '0.875rem' }}>No active reminders.</p>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {reminders.map(r => {
-                const icons = { MEDICINE: '💊', APPOINTMENT: '🏥', POLICY_RENEWAL: '🛡️' };
-                const colors = { MEDICINE: '#fce7f3', APPOINTMENT: '#dbeafe', POLICY_RENEWAL: '#dcfce7' };
-                return (
-                  <div key={r.id} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.875rem',
-                    padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border-light)'
-                  }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 'var(--radius)',
-                      background: colors[r.type] || 'var(--border-light)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem'
-                    }}>
-                      {icons[r.type] || '🔔'}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {r.title}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {r.reminderDate || r.dueDate}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* Overview ledger */}
+      <div className="overview-ledger">
+        {LEDGER.map(({ to, icon: Icon, label, value }) => (
+          <Link to={to} key={label} className="ledger-item">
+            <div className="ledger-icon"><Icon size={20} /></div>
+            <div className="ledger-value">{value}</div>
+            <div className="ledger-label">{label}</div>
+          </Link>
+        ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="card" style={{ marginTop: '1.5rem' }}>
-        <div className="card-header">
-          <h3 style={{ margin: 0 }}>⚡ Quick Actions</h3>
+      {/* Main grid */}
+      <div className="dashboard-grid">
+        {/* Recent records */}
+        <div className="panel">
+          <div className="panel-header">
+            <span className="eyebrow" style={{ marginBottom: 0 }}>Recent</span>
+            <h2 className="panel-title">Medical Records</h2>
+          </div>
+          {recentRecords.length === 0 ? (
+            <div className="panel-empty">
+              <FilePlus2 size={28} className="muted" />
+              <p className="muted">No records yet.</p>
+              <Link to="/records" className="button button-primary button-small">Add Record</Link>
+            </div>
+          ) : (
+            <ul className="record-list">
+              {recentRecords.map(r => {
+                const member = family.find(m => m.id?.toString() === r.familyMemberId?.toString());
+                return (
+                  <li key={r.id} className="record-item">
+                    <div className="record-date-block">
+                      <span className="record-day">{r.recordDate ? new Date(r.recordDate + 'T00:00:00').getDate() : '—'}</span>
+                      <span className="record-month">{r.recordDate ? new Date(r.recordDate + 'T00:00:00').toLocaleString('en-IN', { month: 'short' }).toUpperCase() : ''}</span>
+                    </div>
+                    <div className="record-info">
+                      <div className="record-title">{r.title}</div>
+                      <div className="record-meta muted">
+                        {CATEGORY_LABEL[r.category] || r.category}
+                        {member ? ` · ${member.fullName}` : ''}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="panel-footer">
+            <Link to="/records" className="text-link">View all records →</Link>
+          </div>
         </div>
-        <div className="card-body" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <Link to="/records" className="btn btn-secondary">📋 Add Medical Record</Link>
-          <Link to="/family" className="btn btn-secondary">👤 Add Family Member</Link>
-          <Link to="/policies" className="btn btn-secondary">🛡️ Add Insurance Policy</Link>
-          <Link to="/claims" className="btn btn-secondary">📄 Manage Claim Docs</Link>
-          <Link to="/emergency" className="btn btn-secondary">🚨 Emergency Summary</Link>
+
+        {/* Attention panel */}
+        <div>
+          {/* Active reminders */}
+          <div className="panel" style={{ marginBottom: '1.25rem' }}>
+            <div className="panel-header">
+              <h2 className="panel-title">Active Reminders</h2>
+            </div>
+            {activeReminders.length === 0 ? (
+              <div className="panel-empty" style={{ padding: '1.25rem' }}>
+                <p className="muted" style={{ margin: 0, fontSize: 14 }}>No active reminders.</p>
+              </div>
+            ) : (
+              <ul className="record-list">
+                {activeReminders.slice(0, 4).map(r => (
+                  <li key={r.id} className="record-item">
+                    <div className="reminder-type-dot" data-type={r.reminderType || r.type} />
+                    <div className="record-info">
+                      <div className="record-title">{r.title}</div>
+                      <div className="record-meta muted">{(r.reminderType || r.type)?.replace('_', ' ')} · {formatDate(r.reminderDate)}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="panel-footer">
+              <Link to="/reminders" className="text-link">Manage reminders →</Link>
+            </div>
+          </div>
+
+          {/* Emergency callout */}
+          <div className="emergency-callout">
+            <Siren size={22} />
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Emergency Summary</div>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                Generate a printable health card for hospital visits with critical information at a glance.
+              </p>
+            </div>
+            <Link to="/emergency" className="button button-small button-secondary" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+              Open →
+            </Link>
+          </div>
         </div>
       </div>
     </div>

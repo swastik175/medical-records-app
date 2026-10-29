@@ -9,10 +9,34 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] })
   ],
   server: {
-    port: 3000,
+    port: 4122,
     proxy: {
+      '/api/family': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/family(\b|\/|\?)/, '/api/family-members$1')
+      },
+      '/api/records': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/records(\b|\/|\?)/, '/api/medical-records$1')
+      },
+      '/api/policies': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/policies(\b|\/|\?)/, '/api/insurance-policies$1')
+      },
+      '/api/emergency': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/emergency(\b|\/|\?)/, '/api/emergency-summary$1')
+      },
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8082',
         changeOrigin: true,
         secure: false
       }
