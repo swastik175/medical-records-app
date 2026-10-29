@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+dist/
+*.log
+.env
+.env.local
+.env.production
+
+# Backend
+backend/target/
+backend/data/
+backend/uploads/
+backend/*.jar
+
+# Docker volumes
+data/
+uploads/

@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # ── Spring Boot Backend ──────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mfmed-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads/medical-documents
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - mfmed-net
+
+  # ── React Frontend (Nginx) ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mfmed-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mfmed-net
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  backend-data:
+    driver: local
+  backend-uploads:
+    driver: local
+
+# ── Network ───────────────────────────────────────────────────────────────────
+networks:
+  mfmed-net:
+    driver: bridge
