@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ShieldCheck, FileText, CheckCircle2, Lock } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { Brand } from '../common/UI';
 import { toast } from 'sonner';
+import docsImage from '../../assets/medical_insurance_docs.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -71,7 +73,7 @@ export default function LoginPage() {
           <div className="eyebrow">
             {tab === 'login' ? 'Welcome back' : 'Create account'}
           </div>
-          <h1>{tab === 'login' ? 'Sign in' : 'Get started'}</h1>
+          <h1 className="auth-heading">{tab === 'login' ? 'Sign in' : 'Get started'}</h1>
           <p className="auth-description">
             {tab === 'login'
               ? "Access your family's secure health records."
@@ -112,7 +114,10 @@ export default function LoginPage() {
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
               <div className="auth-demo-hint">
-                <strong>Demo:</strong> Mobile <code>9876543210</code> · Password <code>Password@123</code>
+                <span className="demo-chip">DEMO LOGIN</span>
+                <div style={{ marginTop: 4 }}>
+                  Mobile: <code>9876543210</code> · Password: <code>Password@123</code>
+                </div>
               </div>
             </form>
           ) : (
@@ -182,22 +187,76 @@ export default function LoginPage() {
           )}
 
           <p className="auth-footer">
-            🔒 Your records are stored securely. We never share your health data without your explicit consent.
+            <Lock size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+            Your records are stored securely with 256-bit AES encryption.
           </p>
         </main>
       </div>
 
-      {/* ── Decorative aside ── */}
+      {/* ── Decorative aside with translucent documents image ── */}
       <aside className="auth-aside">
-        <div>
-          <Brand inverse />
-          <blockquote>Your family's health, always at hand.</blockquote>
-          <p>
-            Store prescriptions, lab reports, insurance policies and more — organised, private and accessible
-            whenever your family needs them most.
-          </p>
+        {/* Translucent background image layer */}
+        <div className="auth-aside-bg-layer" style={{ backgroundImage: `url(${docsImage})` }} />
+        <div className="auth-aside-gradient-overlay" />
+
+        {/* Content layer */}
+        <div className="auth-aside-content">
+          <header className="auth-aside-header">
+            <Brand inverse />
+            <span className="auth-aside-badge">
+              <ShieldCheck size={14} /> Vault Active
+            </span>
+          </header>
+
+          <div className="auth-aside-middle">
+            <blockquote>Your family's health, always at hand.</blockquote>
+            <p>
+              Prescriptions, lab diagnostics, health policies, and emergency summaries — organised in one place.
+            </p>
+
+            {/* Floating Glassmorphic Document & Policy Cards */}
+            <div className="auth-glass-cards">
+              <div className="auth-glass-card auth-glass-card-primary">
+                <div className="auth-glass-card-header">
+                  <div className="glass-icon-wrap">
+                    <ShieldCheck size={20} />
+                  </div>
+                  <div>
+                    <div className="glass-card-title">Family Health Shield</div>
+                    <div className="glass-card-subtitle">Policy #POL-8942-A • ₹15,00,000</div>
+                  </div>
+                  <span className="glass-status-dot" title="Active" />
+                </div>
+                <div className="glass-card-tags">
+                  <span className="glass-tag">Cashless Portal Active</span>
+                  <span className="glass-tag">Self • Spouse • 2 Kids</span>
+                </div>
+              </div>
+
+              <div className="auth-glass-card auth-glass-card-secondary">
+                <div className="auth-glass-card-header">
+                  <div className="glass-icon-wrap glass-icon-accent">
+                    <FileText size={18} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div className="glass-card-title">Verified Prescription & Lab</div>
+                    <div className="glass-card-subtitle">Dr. Arvind Mehta • Complete Review</div>
+                  </div>
+                  <CheckCircle2 size={16} className="glass-check-icon" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <footer className="auth-aside-footer">
+            <div className="auth-trust-pills">
+              <span>🔒 ABDM Compliant</span>
+              <span>⚡ Fast Cashless Pre-Auth</span>
+              <span>📄 Multi-Member Dossier</span>
+            </div>
+            <small>By My Friend Insurancewala</small>
+          </footer>
         </div>
-        <small>By My Friend Insurancewala</small>
       </aside>
     </div>
   );

@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/emergency-summary")
+@RequestMapping({"/api/emergency-summary", "/api/emergency"})
 public class EmergencySummaryController {
 
     @Autowired

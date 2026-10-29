@@ -1,9 +1,17 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+// Resolve backend base URL from environment variable or default to '/api' for proxy/same-origin
+const resolveBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (!envUrl || envUrl.trim() === '') {
+    return '/api';
+  }
+  const clean = envUrl.trim().replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+};
 
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: resolveBaseUrl(),
   headers: { 'Content-Type': 'application/json' }
 });
 

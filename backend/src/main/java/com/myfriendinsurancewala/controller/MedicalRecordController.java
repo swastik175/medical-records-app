@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/medical-records")
+@RequestMapping({"/api/medical-records", "/api/records"})
 public class MedicalRecordController {
 
     @Autowired

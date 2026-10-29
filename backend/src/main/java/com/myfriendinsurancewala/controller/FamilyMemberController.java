@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/family-members")
+@RequestMapping({"/api/family-members", "/api/family"})
 public class FamilyMemberController {
 
     @Autowired
