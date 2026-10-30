@@ -9,6 +9,7 @@ public class AuthResponse {
     private String role;
     private boolean consentGiven;
     private boolean allowAdvisorAccess;
+    private boolean mustChangePassword;
     private String emergencyContactName;
     private String emergencyContactPhone;
     private String emergencyContactRelation;
@@ -16,8 +17,14 @@ public class AuthResponse {
     public AuthResponse() {}
 
     public AuthResponse(String token, Long id, String fullName, String mobileNumber, String email, String role,
-                        boolean consentGiven, boolean allowAdvisorAccess, String emergencyContactName,
-                        String emergencyContactPhone, String emergencyContactRelation) {
+                        boolean consentGiven, boolean allowAdvisorAccess,
+                        String emergencyContactName, String emergencyContactPhone, String emergencyContactRelation) {
+        this(token, id, fullName, mobileNumber, email, role, consentGiven, allowAdvisorAccess, false, emergencyContactName, emergencyContactPhone, emergencyContactRelation);
+    }
+
+    public AuthResponse(String token, Long id, String fullName, String mobileNumber, String email, String role,
+                        boolean consentGiven, boolean allowAdvisorAccess, boolean mustChangePassword,
+                        String emergencyContactName, String emergencyContactPhone, String emergencyContactRelation) {
         this.token = token;
         this.id = id;
         this.fullName = fullName;
@@ -26,6 +33,7 @@ public class AuthResponse {
         this.role = role;
         this.consentGiven = consentGiven;
         this.allowAdvisorAccess = allowAdvisorAccess;
+        this.mustChangePassword = mustChangePassword;
         this.emergencyContactName = emergencyContactName;
         this.emergencyContactPhone = emergencyContactPhone;
         this.emergencyContactRelation = emergencyContactRelation;
@@ -54,6 +62,9 @@ public class AuthResponse {
 
     public boolean isAllowAdvisorAccess() { return allowAdvisorAccess; }
     public void setAllowAdvisorAccess(boolean allowAdvisorAccess) { this.allowAdvisorAccess = allowAdvisorAccess; }
+
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 
     public String getEmergencyContactName() { return emergencyContactName; }
     public void setEmergencyContactName(String emergencyContactName) { this.emergencyContactName = emergencyContactName; }

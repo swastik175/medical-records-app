@@ -7,8 +7,7 @@ import { toast } from 'sonner';
 const EMPTY_FORM = {
   companyName: '', policyNumber: '', policyholderName: '',
   insuredMembersSummary: '', startDate: '', expiryDate: '',
-  sumInsured: '', roomRentLimit: '', tpaName: '',
-  cashlessPortalUrl: '', customerCareNumber: '',
+  sumInsured: '', customerCareNumber: '',
   renewalReminderDays: 30, active: true,
 };
 
@@ -61,8 +60,7 @@ export default function InsurancePoliciesPage() {
       companyName: p.companyName || '', policyNumber: p.policyNumber || '',
       policyholderName: p.policyholderName || '', insuredMembersSummary: p.insuredMembersSummary || '',
       startDate: p.startDate || '', expiryDate: p.expiryDate || '',
-      sumInsured: p.sumInsured || '', roomRentLimit: p.roomRentLimit || '',
-      tpaName: p.tpaName || '', cashlessPortalUrl: p.cashlessPortalUrl || '',
+      sumInsured: p.sumInsured || '',
       customerCareNumber: p.customerCareNumber || '',
       renewalReminderDays: p.renewalReminderDays || 30, active: p.active !== false,
     });
@@ -82,9 +80,6 @@ export default function InsurancePoliciesPage() {
         startDate: form.startDate,
         expiryDate: form.expiryDate,
         sumInsured: form.sumInsured ? Number(form.sumInsured) : null,
-        roomRentLimit: form.roomRentLimit || null,
-        tpaName: form.tpaName || null,
-        cashlessPortalUrl: form.cashlessPortalUrl || null,
         customerCareNumber: form.customerCareNumber || null,
         renewalReminderDays: Number(form.renewalReminderDays) || 30,
         active: form.active
@@ -241,29 +236,10 @@ export default function InsurancePoliciesPage() {
                 </div>
                 <div className="form-grid">
                   <label className="field">
-                    <span>Room Rent Limit</span>
-                    <input type="text" placeholder="e.g. 1% of SI per day"
-                      value={form.roomRentLimit} onChange={e => set({ roomRentLimit: e.target.value })} />
-                  </label>
-                  <label className="field">
-                    <span>TPA Name</span>
-                    <input type="text" placeholder="e.g. MD India Health"
-                      value={form.tpaName} onChange={e => set({ tpaName: e.target.value })} />
-                  </label>
-                </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Cashless Hospital Portal URL</span>
-                    <input type="url" placeholder="https://…"
-                      value={form.cashlessPortalUrl} onChange={e => set({ cashlessPortalUrl: e.target.value })} />
-                  </label>
-                  <label className="field">
                     <span>Customer Care Number</span>
                     <input type="text" placeholder="1800-xxx-xxxx"
                       value={form.customerCareNumber} onChange={e => set({ customerCareNumber: e.target.value })} />
                   </label>
-                </div>
-                <div className="form-grid">
                   <label className="field">
                     <span>Renewal Reminder (days before)</span>
                     <select value={form.renewalReminderDays} onChange={e => set({ renewalReminderDays: Number(e.target.value) })}>
@@ -274,11 +250,11 @@ export default function InsurancePoliciesPage() {
                       <option value={90}>90 days</option>
                     </select>
                   </label>
-                  <label className="field">
-                    <span>Upload Policy Document</span>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setPolicyFile(e.target.files[0])} />
-                  </label>
                 </div>
+                <label className="field">
+                  <span>Upload Policy Document</span>
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setPolicyFile(e.target.files[0])} />
+                </label>
                 <label className="consent-row">
                   <input type="checkbox" checked={form.active} onChange={e => set({ active: e.target.checked })} />
                   <span>Policy is currently active</span>

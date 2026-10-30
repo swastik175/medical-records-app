@@ -14,6 +14,24 @@ export const authService = {
     return res.data;
   },
 
+  async forgotPassword(identifier) {
+    const res = await api.post('/auth/forgot-password', { identifier });
+    return res.data;
+  },
+
+  async changePassword(payload) {
+    const res = await api.post('/auth/change-password', payload);
+    if (res.data?.token) {
+      const { token, ...user } = res.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      const currentUser = this.getCurrentUser() || {};
+      localStorage.setItem('user', JSON.stringify({ ...currentUser, mustChangePassword: false }));
+    }
+    return res.data;
+  },
+
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');

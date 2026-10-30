@@ -25,6 +25,9 @@ public class User {
     @Column(nullable = false)
     private String role = "ROLE_CLIENT";
 
+    @Column(name = "must_change_password", columnDefinition = "boolean default false")
+    private boolean mustChangePassword = false;
+
     private String emergencyContactName;
     private String emergencyContactPhone;
     private String emergencyContactRelation;
@@ -77,6 +80,9 @@ public class User {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 
     public String getEmergencyContactName() { return emergencyContactName; }
     public void setEmergencyContactName(String emergencyContactName) { this.emergencyContactName = emergencyContactName; }

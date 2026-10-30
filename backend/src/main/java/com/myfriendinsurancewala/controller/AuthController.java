@@ -2,8 +2,11 @@ package com.myfriendinsurancewala.controller;
 
 import com.myfriendinsurancewala.dto.AuthRequest;
 import com.myfriendinsurancewala.dto.AuthResponse;
+import com.myfriendinsurancewala.dto.ChangePasswordRequest;
 import com.myfriendinsurancewala.dto.ConsentUpdateRequest;
+import com.myfriendinsurancewala.dto.ForgotPasswordRequest;
 import com.myfriendinsurancewala.dto.RegisterRequest;
+import com.myfriendinsurancewala.exception.UnauthorizedAccessException;
 import com.myfriendinsurancewala.model.User;
 import com.myfriendinsurancewala.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +37,23 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
         String ip = httpRequest.getRemoteAddr();
         AuthResponse response = authService.login(request, ip);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
+        String ip = httpRequest.getRemoteAddr();
+        authService.forgotPassword(request, ip);
+        return ResponseEntity.ok(Map.of("message", "A temporary password has been sent to your registered email address."));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<AuthResponse> changePassword(@AuthenticationPrincipal User user, @Valid @RequestBody ChangePasswordRequest request, HttpServletRequest httpRequest) {
+        if (user == null) {
+            throw new UnauthorizedAccessException("You must be logged in to change your password");
+        }
+        String ip = httpRequest.getRemoteAddr();
+        AuthResponse response = authService.changePassword(user, request, ip);
         return ResponseEntity.ok(response);
     }
 
