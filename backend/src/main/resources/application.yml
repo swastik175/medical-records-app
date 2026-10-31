@@ -1,20 +1,21 @@
+```yaml
 server:
   port: 8080
 
 spring:
   application:
     name: medical-records-backend
-  profiles:
-    active: dev
 
   datasource:
-    url: jdbc:h2:file:./data/medicalrecordsdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;AUTO_RECONNECT=TRUE
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:/app/data/medicalrecordsdb;DB_CLOSE_ON_EXIT=FALSE}
     driver-class-name: org.h2.Driver
-    username: sa
-    password: password
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${H2_PASSWORD}
+    
   h2:
     console:
       enabled: false
+
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
@@ -32,17 +33,21 @@ spring:
 
 app:
   jwt:
-    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-    expiration-ms: 86400000 # 24 hours
+    secret: ${JWT_SECRET}
+    expiration-ms: 86400000
+
   storage:
-    upload-dir: ${APP_UPLOAD_DIR:./uploads/medical-documents}
+    upload-dir: ${APP_UPLOAD_DIR:/app/uploads/medical-documents}
+
   supabase:
     url: ${SUPABASE_URL:}
-    key: ${SUPABASE_KEY:}
+    key: ${SUPABASE_SECRET_KEY:}
     bucket: ${SUPABASE_BUCKET:medical-documents}
+
   resend:
     api-key: ${RESEND_API_KEY:}
     from-email: ${RESEND_FROM_EMAIL:onboarding@resend.dev}
+
   brand:
     name: "My Friend Insurancewala"
     app-title: "My Family Medical Records"
@@ -53,13 +58,16 @@ spring:
   config:
     activate:
       on-profile: prod
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/medicalrecords}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     show-sql: false
+```
